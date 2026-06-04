@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+data/team_comp.csv
+.DS_Store
+.streamlit/secrets.toml
+.claude/settings.local.json
