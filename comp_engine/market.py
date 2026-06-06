@@ -311,8 +311,36 @@ def fetch_market(
                 p.match_type = "broad"
                 broad.append(p)
 
-    # Combine: exact first, then related, then broad.
-    result.postings = exact + related + broad
+    # Combine all matches, then interleave by company so results aren't
+    # dominated by one company with many postings. Within each company,
+    # prefer salary-disclosed postings and exact matches.
+    all_matched = exact + related + broad
+
+    # Sort within each company: salary > no salary, exact > related > broad.
+    match_rank = {"exact": 0, "related": 1, "broad": 2}
+    all_matched.sort(key=lambda p: (
+        0 if (p.salary_low and p.salary_high) else 1,
+        match_rank.get(p.match_type, 3),
+    ))
+
+    # Round-robin interleave across companies.
+    from collections import defaultdict
+    by_company: dict[str, list[Posting]] = defaultdict(list)
+    for p in all_matched:
+        by_company[p.company].append(p)
+
+    interleaved: list[Posting] = []
+    queues = list(by_company.values())
+    idx = 0
+    while queues:
+        q = queues[idx % len(queues)]
+        interleaved.append(q.pop(0))
+        if not q:
+            queues.pop(idx % len(queues))
+        else:
+            idx += 1
+
+    result.postings = interleaved
 
     # Strip content from results to save memory (no longer needed).
     for p in result.postings:
