@@ -34,11 +34,9 @@ LEVELS = [
 LEVELS_BY_CODE = {lv.code: lv for lv in LEVELS}
 
 FUNCTIONS = [
-    "Engineering",
     "Software",
     "ML",
     "Hardware",
-    "Robotics",
     "Design",
     "Product",
     "Operations",
@@ -72,9 +70,9 @@ _FUNCTION_SIGNALS = [
     ("ml ", "ML"),
     ("perception", "ML"),
     ("computer vision", "ML"),
-    ("autonomy", "Robotics"),
-    ("robotics", "Robotics"),
-    ("controls", "Robotics"),
+    ("autonomy", "Software"),
+    ("robotics", "Software"),
+    ("controls", "Software"),
     ("mechanical", "Hardware"),
     ("electrical", "Hardware"),
     ("firmware", "Hardware"),
@@ -85,7 +83,7 @@ _FUNCTION_SIGNALS = [
     ("frontend", "Software"),
     ("full stack", "Software"),
     ("fullstack", "Software"),
-    ("engineer", "Engineering"),
+    ("engineer", "Software"),
     ("design", "Design"),
     ("product manager", "Product"),
     ("operations", "Operations"),
@@ -102,7 +100,7 @@ def infer_function(title: str) -> str:
     for kw, fn in _FUNCTION_SIGNALS:
         if kw in t:
             return fn
-    return "Engineering"
+    return "Software"
 
 
 def infer_level(title: str, years_experience: float) -> tuple[str, str]:

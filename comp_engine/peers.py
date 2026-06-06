@@ -1,12 +1,14 @@
 """Peer companies and their public ATS endpoints for live job-posting pulls.
 
-Slugs are best guesses for each company's Greenhouse / Lever board. Some will
-be wrong or the company may use a different ATS -- the market fetcher skips any
-that 404, so correcting a slug here is the only maintenance needed.
+Supported ATS platforms:
+  - Greenhouse: boards-api.greenhouse.io/v1/boards/<slug>/jobs
+  - Lever:      api.lever.co/v0/postings/<slug>
+  - Ashby:      api.ashbyhq.com/posting-api/job-board/<slug>
 
-To find a slug:
-  - Greenhouse board URL looks like  boards.greenhouse.io/<slug>
-  - Lever board URL looks like       jobs.lever.co/<slug>
+Companies on Workday, iCIMS, or custom ATS (Tesla, Rivian, iRobot,
+Amazon Lab126, Boston Dynamics, Bear Robotics) don't have a clean public
+JSON API we can hit, so they're excluded for now. The market fetcher
+skips any peer that 404s, so adding a wrong slug is harmless.
 """
 from dataclasses import dataclass
 
@@ -14,27 +16,29 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class Peer:
     name: str
-    ats: str  # "greenhouse" | "lever"
+    ats: str  # "greenhouse" | "lever" | "ashby"
     slug: str
 
 
 PEERS = [
-    Peer("Tesla", "greenhouse", "tesla"),
-    Peer("Rivian", "greenhouse", "rivian"),
+    # --- User's primary peer list ---
     Peer("Mill", "greenhouse", "mill"),
-    Peer("Anduril", "lever", "anduril"),
-    Peer("Amazon Lab126", "greenhouse", "lab126"),
-    Peer("Sunday Robotics", "greenhouse", "sundayrobotics"),
-    Peer("iRobot", "greenhouse", "irobot"),
+    Peer("Anduril", "greenhouse", "andurilindustries"),
     Peer("Lucid Motors", "greenhouse", "lucidmotors"),
     Peer("Figure AI", "greenhouse", "figureai"),
     Peer("Cobalt Robotics", "lever", "cobaltrobotics"),
-    # Added by Claude -- same robotics / ML / consumer-hardware talent pool:
-    Peer("Zipline", "lever", "zipline"),
-    Peer("Skydio", "greenhouse", "skydio"),
+    Peer("Sunday Robotics", "ashby", "sunday"),
+    # --- Extended talent-pool peers ---
+    Peer("Zipline", "greenhouse", "flyzipline"),
+    Peer("Skydio", "ashby", "skydio"),
     Peer("Nuro", "greenhouse", "nuro"),
     Peer("Waymo", "greenhouse", "waymo"),
-    Peer("Physical Intelligence", "greenhouse", "physicalintelligence"),
-    Peer("Bear Robotics", "lever", "bearrobotics"),
-    Peer("Boston Dynamics", "greenhouse", "bostondynamics"),
+    Peer("Physical Intelligence", "ashby", "physicalintelligence"),
+    # --- Not auto-pullable (Workday / iCIMS / custom ATS) ---
+    # Tesla          — custom ATS (tesla.com/careers)
+    # Rivian         — iCIMS (us-careers-rivian.icims.com)
+    # iRobot         — Workday (irobot.wd5.myworkdayjobs.com/iRobot)
+    # Amazon Lab126  — Amazon internal (amazon.jobs/en/teams/lab126)
+    # Boston Dynamics — Workday (bostondynamics.wd1.myworkdayjobs.com)
+    # Bear Robotics  — Breezy HR (bear-robotics.breezy.hr)
 ]
