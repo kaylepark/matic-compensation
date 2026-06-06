@@ -275,7 +275,7 @@ if st.button("Generate recommendation", type="primary"):
                     {
                         "Company": p.company,
                         "Title": p.title,
-                        "Match": "✓" if p.match_type == "exact" else "~",
+                        "Match": {"exact": "✓ exact", "related": "~ related", "broad": "~ broad"}.get(p.match_type, "~"),
                         "Location": p.location,
                         "Low": f"${p.salary_low:,}",
                         "High": f"${p.salary_high:,}",

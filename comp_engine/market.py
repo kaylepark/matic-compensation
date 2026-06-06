@@ -41,7 +41,7 @@ _LEVEL_PREFIX_RE = re.compile(
     re.IGNORECASE,
 )
 
-MIN_COMPANIES = 3  # Minimum company diversity target for results.
+MIN_COMPANIES = 5  # Minimum company diversity target for results.
 
 
 @dataclass
@@ -103,14 +103,22 @@ def _matches_exact(posting_title: str, search_phrase: str) -> bool:
     return search_phrase.lower() in posting_title.lower()
 
 
+_EXCLUDE_TITLE_RE = re.compile(
+    r"\b(?:intern|internship|co-?op)\b", re.IGNORECASE
+)
+
+
 def _matches_broad(posting_title: str, posting_content: str,
                    search_phrase: str) -> bool:
     """Broad: the full phrase appears in the posting description (not just title).
 
     This catches postings where the title is different (e.g. "Design Engineer")
     but the description mentions "mechanical engineer" as a requirement.
+    Excludes internships.
     """
-    return search_phrase.lower() in f"{posting_title} {posting_content}".lower()
+    if _EXCLUDE_TITLE_RE.search(posting_title):
+        return False
+    return search_phrase.lower() in posting_content.lower()
 
 
 def _yoe_compatible(posting_yoe: Optional[int], candidate_yoe: Optional[float]) -> bool:
@@ -251,7 +259,10 @@ def fetch_market(
             continue
         all_postings.extend(raw)
 
-    # --- Pass 1: exact phrase match in title ---
+    # Core words for flexible title matching (words > 2 chars).
+    core_words = [w for w in search.split() if len(w) > 2]
+
+    # --- Pass 1: exact phrase in title ("Mechanical Engineer" as substring) ---
     exact = []
     for p in all_postings:
         if (
@@ -262,17 +273,36 @@ def fetch_market(
             p.match_type = "exact"
             exact.append(p)
 
-    exact_companies = set(p.company for p in exact)
+    seen_urls = set(p.url for p in exact)
+    all_companies = set(p.company for p in exact)
 
-    # --- Pass 2: broad match if we need more company diversity ---
-    broad = []
-    if len(exact_companies) < MIN_COMPANIES:
-        seen_urls = set(p.url for p in exact)
+    # --- Pass 2: all core words in title, any order ---
+    # Catches "Mechanical Design Engineer", "Hardware Engineer - Mechanical", etc.
+    related = []
+    if len(all_companies) < MIN_COMPANIES and core_words:
         for p in all_postings:
             if p.url in seen_urls:
                 continue
-            if p.company in exact_companies:
-                continue  # Already have this company from exact match.
+            if _EXCLUDE_TITLE_RE.search(p.title):
+                continue
+            t = p.title.lower()
+            if (
+                all(w in t for w in core_words)
+                and _location_ok(p.location, location_filter)
+                and _yoe_compatible(p.yoe_required, candidate_yoe)
+            ):
+                p.match_type = "related"
+                related.append(p)
+                seen_urls.add(p.url)
+        all_companies |= set(p.company for p in related)
+
+    # --- Pass 3: full phrase in description (not just title) ---
+    # Catches postings with a different title but the role described in the body.
+    broad = []
+    if len(all_companies) < MIN_COMPANIES:
+        for p in all_postings:
+            if p.url in seen_urls:
+                continue
             if (
                 _matches_broad(p.title, p.content, search)
                 and _location_ok(p.location, location_filter)
@@ -281,8 +311,8 @@ def fetch_market(
                 p.match_type = "broad"
                 broad.append(p)
 
-    # Combine: exact first, then broad.
-    result.postings = exact + broad
+    # Combine: exact first, then related, then broad.
+    result.postings = exact + related + broad
 
     # Strip content from results to save memory (no longer needed).
     for p in result.postings:
